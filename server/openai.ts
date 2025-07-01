@@ -99,3 +99,98 @@ Return your response as a JSON object with this exact format:
     throw new Error("Failed to generate test questions: " + (error as Error).message);
   }
 }
+
+export async function getCollegeRecommendations(
+  query: string,
+  colleges: any[]
+): Promise<any[]> {
+  try {
+    const systemPrompt = `You are an educational consultant helping students find the best colleges in India. Based on the user's query and the provided college database, recommend the most suitable colleges.
+
+Analyze the user's query for:
+- Academic interests (engineering, medicine, business, arts, etc.)
+- Location preferences
+- Budget constraints
+- Career goals
+- Entrance exam preferences
+
+Return a JSON array of college IDs ranked by relevance to the query, with reasoning for each recommendation.
+
+Format: 
+{
+  "recommendations": [
+    {
+      "id": 1,
+      "score": 95,
+      "reasoning": "Perfect match for engineering with excellent ranking and reasonable fees"
+    }
+  ]
+}`;
+
+    const collegeData = colleges.map(c => ({
+      id: c.id,
+      name: c.name,
+      location: c.location,
+      courses: c.courses,
+      fees: c.fees,
+      ranking: c.ranking,
+      entranceExam: c.entranceExam,
+      description: c.description
+    }));
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            recommendations: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  id: { type: "number" },
+                  score: { type: "number" },
+                  reasoning: { type: "string" }
+                },
+                required: ["id", "score", "reasoning"]
+              }
+            }
+          },
+          required: ["recommendations"]
+        }
+      },
+      contents: `User Query: "${query}"\n\nAvailable Colleges: ${JSON.stringify(collegeData)}\n\nProvide personalized college recommendations based on the query.`
+    });
+
+    const rawJson = response.text;
+    console.log(`AI College Recommendations: ${rawJson}`);
+
+    if (rawJson) {
+      const result = JSON.parse(rawJson);
+      
+      if (!result.recommendations || !Array.isArray(result.recommendations)) {
+        throw new Error("Invalid response format from Gemini");
+      }
+
+      // Sort by score and return recommended college IDs
+      const sortedRecommendations = result.recommendations
+        .sort((a: any, b: any) => b.score - a.score)
+        .map((rec: any) => rec.id);
+
+      // Return colleges in recommended order
+      return sortedRecommendations.map((id: number) => 
+        colleges.find(c => c.id === id)
+      ).filter(Boolean);
+    } else {
+      throw new Error("Empty response from Gemini");
+    }
+
+  } catch (error) {
+    console.error("Error getting college recommendations:", error);
+    // Return original colleges if AI fails
+    return colleges;
+  }
+}

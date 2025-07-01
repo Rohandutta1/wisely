@@ -17,8 +17,12 @@ A comprehensive educational platform featuring:
 
 ## Recent Changes
 - Initial project setup (January 1, 2025)
-- Data models defined for users, tests, questions, colleges, and teachers
-- Authentication system planned with Replit Auth
+- Complete website built with all major features (January 1, 2025)
+- Switched from OpenAI to free Gemini API for AI question generation
+- Database schema created and seeded with sample colleges and teachers
+- AI-powered college search functionality implemented
+- Teacher booking system with dialog interface completed
+- Fixed SelectItem value prop errors that were causing crashes
 
 ## User Preferences
 - Quirky and appealing design style preferred

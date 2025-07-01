@@ -1,11 +1,17 @@
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowLeft, Search, Star, Clock, GraduationCap, CalendarPlus } from "lucide-react";
@@ -32,6 +38,16 @@ export default function Teachers() {
     maxRate: ""
   });
 
+  const [selectedTeacher, setSelectedTeacher] = useState<Teacher | null>(null);
+  const [bookingData, setBookingData] = useState({
+    date: "",
+    time: "",
+    duration: "1",
+    message: ""
+  });
+  
+  const { toast } = useToast();
+
   const { data: teachers = [], isLoading } = useQuery<Teacher[]>({
     queryKey: ["/api/teachers", filters],
     queryFn: async () => {
@@ -57,6 +73,57 @@ export default function Teachers() {
   const handleSearch = () => {
     // Trigger refetch by updating query key
     // The query will automatically refetch when filters change
+  };
+
+  const bookingMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await fetch("/api/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error("Booking failed");
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Booking Successful!",
+        description: "Your session has been booked. The teacher will contact you soon.",
+      });
+      setSelectedTeacher(null);
+      setBookingData({ date: "", time: "", duration: "1", message: "" });
+    },
+    onError: (error) => {
+      toast({
+        title: "Booking Failed",
+        description: "Please try again or contact support.",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const handleBooking = () => {
+    if (!selectedTeacher || !bookingData.date || !bookingData.time) {
+      toast({
+        title: "Missing Information",
+        description: "Please fill in all required fields.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const totalCost = selectedTeacher.hourlyRate * parseInt(bookingData.duration);
+    
+    bookingMutation.mutate({
+      teacherId: selectedTeacher.id,
+      date: bookingData.date,
+      time: bookingData.time,
+      duration: parseInt(bookingData.duration),
+      message: bookingData.message,
+      totalCost,
+    });
   };
 
   if (isLoading) {
@@ -201,10 +268,92 @@ export default function Teachers() {
                       <span className="text-gray-600">/hour</span>
                     </div>
                     
-                    <Button className="w-full bg-gradient-to-r from-primary to-secondary transform hover:scale-105 transition-all">
-                      <CalendarPlus className="mr-2" size={16} />
-                      Book Session
-                    </Button>
+                    <Dialog>
+                      <DialogTrigger asChild>
+                        <Button 
+                          className="w-full bg-gradient-to-r from-primary to-secondary transform hover:scale-105 transition-all"
+                          onClick={() => setSelectedTeacher(teacher)}
+                        >
+                          <CalendarPlus className="mr-2" size={16} />
+                          Book Session
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-w-md">
+                        <DialogHeader>
+                          <DialogTitle>Book Session with {selectedTeacher?.name}</DialogTitle>
+                        </DialogHeader>
+                        
+                        <div className="space-y-4">
+                          <div>
+                            <Label htmlFor="date">Date *</Label>
+                            <Input
+                              id="date"
+                              type="date"
+                              value={bookingData.date}
+                              onChange={(e) => setBookingData({...bookingData, date: e.target.value})}
+                              min={new Date().toISOString().split('T')[0]}
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="time">Time *</Label>
+                            <Input
+                              id="time"
+                              type="time"
+                              value={bookingData.time}
+                              onChange={(e) => setBookingData({...bookingData, time: e.target.value})}
+                            />
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="duration">Duration (hours) *</Label>
+                            <Select 
+                              value={bookingData.duration} 
+                              onValueChange={(value) => setBookingData({...bookingData, duration: value})}
+                            >
+                              <SelectTrigger>
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="1">1 hour</SelectItem>
+                                <SelectItem value="2">2 hours</SelectItem>
+                                <SelectItem value="3">3 hours</SelectItem>
+                                <SelectItem value="4">4 hours</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          
+                          <div>
+                            <Label htmlFor="message">Message (optional)</Label>
+                            <Textarea
+                              id="message"
+                              placeholder="Any specific requirements or topics to focus on..."
+                              value={bookingData.message}
+                              onChange={(e) => setBookingData({...bookingData, message: e.target.value})}
+                            />
+                          </div>
+                          
+                          {selectedTeacher && (
+                            <div className="bg-gray-50 p-4 rounded-lg">
+                              <div className="flex justify-between items-center">
+                                <span className="font-semibold">Total Cost:</span>
+                                <span className="text-xl font-bold text-primary">
+                                  ₹{selectedTeacher.hourlyRate * parseInt(bookingData.duration || "1")}
+                                </span>
+                              </div>
+                            </div>
+                          )}
+                          
+                          <Button 
+                            onClick={handleBooking}
+                            disabled={bookingMutation.isPending}
+                            className="w-full"
+                          >
+                            {bookingMutation.isPending ? "Booking..." : "Confirm Booking"}
+                          </Button>
+                        </div>
+                      </DialogContent>
+                    </Dialog>
                   </CardContent>
                 </Card>
               ))}

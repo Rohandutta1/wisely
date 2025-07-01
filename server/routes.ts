@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateEnglishTest } from "./openai";
+import { generateEnglishTest, getCollegeRecommendations } from "./openai";
 import { insertTestSchema } from "@shared/schema";
 import { seedDatabase } from "./seedData";
 
@@ -76,23 +76,51 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // College routes
   app.get('/api/colleges', async (req, res) => {
     try {
-      const { course, location, minFees, maxFees } = req.query;
+      const { course, location, minFees, maxFees, query } = req.query;
       
+      let colleges;
       if (course || location || minFees || maxFees) {
-        const colleges = await storage.searchColleges({
+        colleges = await storage.searchColleges({
           course: course as string,
           location: location as string,
           minFees: minFees ? parseInt(minFees as string) : undefined,
           maxFees: maxFees ? parseInt(maxFees as string) : undefined,
         });
-        res.json(colleges);
       } else {
-        const colleges = await storage.getAllColleges();
-        res.json(colleges);
+        colleges = await storage.getAllColleges();
       }
+
+      // If there's a natural language query, use AI to rank results
+      if (query && typeof query === 'string' && query.trim()) {
+        colleges = await getCollegeRecommendations(query.trim(), colleges);
+      }
+      
+      res.json(colleges);
     } catch (error) {
       console.error("Error fetching colleges:", error);
       res.status(500).json({ message: "Failed to fetch colleges" });
+    }
+  });
+
+  // AI College Search endpoint
+  app.post("/api/colleges/search", async (req, res) => {
+    try {
+      const { query } = req.body;
+      
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Query is required" });
+      }
+
+      // Get all colleges first
+      const allColleges = await storage.getAllColleges();
+      
+      // Use AI to recommend colleges based on query
+      const recommendations = await getCollegeRecommendations(query, allColleges);
+      
+      res.json(recommendations);
+    } catch (error) {
+      console.error("Error in AI college search:", error);
+      res.status(500).json({ message: "Failed to search colleges" });
     }
   });
 

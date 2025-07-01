@@ -32,12 +32,15 @@ export default function Colleges() {
     maxFees: ""
   });
 
+  const [aiQuery, setAiQuery] = useState("");
+  const [isAiSearching, setIsAiSearching] = useState(false);
+
   const { data: colleges = [], isLoading } = useQuery<College[]>({
     queryKey: ["/api/colleges", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filters.course) params.append("course", filters.course);
-      if (filters.location) params.append("location", filters.location);
+      if (filters.course && filters.course !== "all") params.append("course", filters.course);
+      if (filters.location && filters.location !== "all") params.append("location", filters.location);
       if (filters.minFees) params.append("minFees", filters.minFees);
       if (filters.maxFees) params.append("maxFees", filters.maxFees);
       
@@ -59,6 +62,31 @@ export default function Colleges() {
     // The query will automatically refetch when filters change
   };
 
+  const handleAiSearch = async () => {
+    if (!aiQuery.trim()) return;
+    
+    setIsAiSearching(true);
+    try {
+      const response = await fetch('/api/colleges/search', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ query: aiQuery }),
+      });
+      
+      if (!response.ok) throw new Error('AI search failed');
+      
+      const aiResults = await response.json();
+      // Trigger regular search with AI results
+      handleSearch();
+    } catch (error) {
+      console.error('AI search error:', error);
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -78,6 +106,37 @@ export default function Colleges() {
             <p className="text-gray-600">Discover top colleges and universities in India</p>
           </div>
 
+          {/* AI Search */}
+          <Card className="mb-8 bg-gradient-to-r from-purple-50 to-blue-50 border-purple-200">
+            <CardContent className="p-6">
+              <div className="text-center mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-2">🤖 AI-Powered College Search</h3>
+                <p className="text-sm text-gray-600">Ask me anything about colleges - I'll find perfect matches!</p>
+              </div>
+              <div className="flex gap-4">
+                <Input
+                  placeholder="e.g., 'Best engineering colleges in Delhi under 5 lakhs' or 'Medical colleges with good placements'"
+                  value={aiQuery}
+                  onChange={(e) => setAiQuery(e.target.value)}
+                  onKeyPress={(e) => e.key === 'Enter' && handleAiSearch()}
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleAiSearch}
+                  disabled={isAiSearching || !aiQuery.trim()}
+                  className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                >
+                  {isAiSearching ? (
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  ) : (
+                    <Search className="mr-2" size={16} />
+                  )}
+                  AI Search
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Search Filters */}
           <Card className="mb-12">
             <CardContent className="p-8">
@@ -92,7 +151,7 @@ export default function Colleges() {
                       <SelectValue placeholder="Select course" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Courses</SelectItem>
+                      <SelectItem value="all">All Courses</SelectItem>
                       <SelectItem value="Engineering">Engineering</SelectItem>
                       <SelectItem value="Medicine">Medicine</SelectItem>
                       <SelectItem value="Business">Business</SelectItem>
@@ -112,7 +171,7 @@ export default function Colleges() {
                       <SelectValue placeholder="Select location" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All India</SelectItem>
+                      <SelectItem value="all">All India</SelectItem>
                       <SelectItem value="Delhi">Delhi</SelectItem>
                       <SelectItem value="Mumbai">Mumbai</SelectItem>
                       <SelectItem value="Bangalore">Bangalore</SelectItem>
