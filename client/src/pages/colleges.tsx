@@ -35,15 +35,17 @@ export default function Colleges() {
   const [aiQuery, setAiQuery] = useState("");
   const [isAiSearching, setIsAiSearching] = useState(false);
 
+  const [aiResults, setAiResults] = useState<College[]>([]);
+  const [showAiResults, setShowAiResults] = useState(false);
+
   const { data: colleges = [], isLoading } = useQuery<College[]>({
-    queryKey: ["/api/colleges", filters, aiQuery],
+    queryKey: ["/api/colleges", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.course && filters.course !== "all") params.append("course", filters.course);
       if (filters.location && filters.location !== "all") params.append("location", filters.location);
       if (filters.minFees) params.append("minFees", filters.minFees);
       if (filters.maxFees) params.append("maxFees", filters.maxFees);
-      if (aiQuery.trim()) params.append("query", aiQuery);
       
       const response = await fetch(`/api/colleges?${params}`);
       if (!response.ok) throw new Error("Failed to fetch colleges");
@@ -67,8 +69,36 @@ export default function Colleges() {
     if (!aiQuery.trim()) return;
     
     setIsAiSearching(true);
-    // The query will be triggered automatically by the useQuery dependency
-    setIsAiSearching(false);
+    try {
+      const params = new URLSearchParams();
+      params.append("query", aiQuery);
+      
+      const response = await fetch(`/api/colleges?${params}`);
+      if (!response.ok) throw new Error("Failed to fetch AI results");
+      
+      const results = await response.json();
+      setAiResults(results);
+      setShowAiResults(true);
+      
+      // Clear regular filters when showing AI results
+      setFilters({
+        course: "",
+        location: "",
+        minFees: "",
+        maxFees: ""
+      });
+      
+    } catch (error) {
+      console.error("AI search error:", error);
+    } finally {
+      setIsAiSearching(false);
+    }
+  };
+
+  const clearAiSearch = () => {
+    setAiQuery("");
+    setAiResults([]);
+    setShowAiResults(false);
   };
 
   if (isLoading) {
@@ -102,7 +132,7 @@ export default function Colleges() {
                   placeholder="e.g., 'Best engineering colleges in Delhi under 5 lakhs' or 'Medical colleges with good placements'"
                   value={aiQuery}
                   onChange={(e) => setAiQuery(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleAiSearch()}
+                  onKeyDown={(e) => e.key === 'Enter' && handleAiSearch()}
                   className="flex-1"
                 />
                 <Button 
@@ -189,8 +219,23 @@ export default function Colleges() {
             </CardContent>
           </Card>
 
+          {/* AI Results Header */}
+          {showAiResults && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between bg-gradient-to-r from-purple-100 to-blue-100 p-4 rounded-lg border border-purple-200">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-800">🤖 AI Search Results</h3>
+                  <p className="text-sm text-gray-600">Showing AI-recommended colleges for: "{aiQuery}"</p>
+                </div>
+                <Button onClick={clearAiSearch} variant="outline" size="sm">
+                  Clear & Show All
+                </Button>
+              </div>
+            </div>
+          )}
+
           {/* College Results */}
-          {colleges.length === 0 ? (
+          {(showAiResults ? aiResults : colleges).length === 0 ? (
             <Card>
               <CardContent className="p-12 text-center">
                 <div className="text-6xl mb-4">🎓</div>
@@ -200,7 +245,7 @@ export default function Colleges() {
             </Card>
           ) : (
             <div className="grid md:grid-cols-2 gap-8">
-              {colleges.map((college) => (
+              {(showAiResults ? aiResults : colleges).map((college) => (
                 <Card key={college.id} className="overflow-hidden card-hover">
                   {college.imageUrl && (
                     <img 
