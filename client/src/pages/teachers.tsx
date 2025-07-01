@@ -159,7 +159,7 @@ export default function Teachers() {
                       <SelectValue placeholder="Select subject" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">All Subjects</SelectItem>
+                      <SelectItem value="all">All Subjects</SelectItem>
                       <SelectItem value="English Grammar">English Grammar</SelectItem>
                       <SelectItem value="Spoken English">Spoken English</SelectItem>
                       <SelectItem value="IELTS Preparation">IELTS Preparation</SelectItem>
