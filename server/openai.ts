@@ -215,3 +215,98 @@ Format:
     return colleges;
   }
 }
+
+export async function searchCollegeInfo(query: string): Promise<any> {
+  try {
+    const systemPrompt = `You are an educational consultant with comprehensive knowledge of colleges and universities in India. When a user searches for a specific college or asks about colleges, provide detailed information including:
+
+1. College name and location
+2. Courses offered
+3. Approximate fees (in INR)
+4. Entrance exams required
+5. Key highlights and reputation
+6. Contact information if known
+
+If the user searches for a specific college that exists, provide detailed information about that college. If they ask a general question, provide information about relevant colleges.
+
+Return your response as a JSON object with this format:
+{
+  "colleges": [
+    {
+      "name": "College Name",
+      "location": "City, State",
+      "courses": ["Course 1", "Course 2"],
+      "fees": 200000,
+      "entranceExam": "Exam Name",
+      "description": "Detailed description of the college",
+      "highlights": ["Key point 1", "Key point 2"],
+      "type": "generated"
+    }
+  ]
+}`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-2.5-flash",
+      config: {
+        systemInstruction: systemPrompt,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: "object",
+          properties: {
+            colleges: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  name: { type: "string" },
+                  location: { type: "string" },
+                  courses: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  fees: { type: "number" },
+                  entranceExam: { type: "string" },
+                  description: { type: "string" },
+                  highlights: {
+                    type: "array",
+                    items: { type: "string" }
+                  },
+                  type: { type: "string" }
+                },
+                required: ["name", "location", "courses", "fees", "description", "type"]
+              }
+            }
+          },
+          required: ["colleges"]
+        }
+      },
+      contents: `User Query: "${query}"\n\nProvide detailed information about the college(s) mentioned or related to this query.`
+    });
+
+    const rawJson = response.text;
+    console.log(`AI College Info: ${rawJson}`);
+
+    if (rawJson) {
+      const result = JSON.parse(rawJson);
+      
+      if (!result.colleges || !Array.isArray(result.colleges)) {
+        throw new Error("Invalid response format from Gemini");
+      }
+
+      // Add IDs to generated colleges
+      return result.colleges.map((college: any, index: number) => ({
+        ...college,
+        id: `ai_${index + 1}`,
+        ranking: null,
+        imageUrl: null,
+        createdAt: new Date().toISOString()
+      }));
+    } else {
+      throw new Error("Empty response from Gemini");
+    }
+
+  } catch (error) {
+    console.error("Error getting college information:", error);
+    throw new Error("Failed to get college information: " + (error as Error).message);
+  }
+}

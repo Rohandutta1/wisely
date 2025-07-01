@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
-import { generateEnglishTest, getCollegeRecommendations } from "./openai";
+import { generateEnglishTest, getCollegeRecommendations, searchCollegeInfo } from "./openai";
 import { insertTestSchema } from "@shared/schema";
 import { seedDatabase } from "./seedData";
 
@@ -90,9 +90,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
         colleges = await storage.getAllColleges();
       }
 
-      // If there's a natural language query, use AI to rank results
+      // If there's a natural language query, use AI to get information
       if (query && typeof query === 'string' && query.trim()) {
-        colleges = await getCollegeRecommendations(query.trim(), colleges);
+        try {
+          // First try to get AI-generated college information
+          const aiColleges = await searchCollegeInfo(query.trim());
+          
+          // If AI found specific colleges, return them
+          if (aiColleges && aiColleges.length > 0) {
+            res.json(aiColleges);
+            return;
+          }
+          
+          // Otherwise, use AI to rank existing colleges
+          colleges = await getCollegeRecommendations(query.trim(), colleges);
+        } catch (error) {
+          console.error("AI search error:", error);
+          // Fall back to existing colleges if AI fails
+        }
       }
       
       res.json(colleges);

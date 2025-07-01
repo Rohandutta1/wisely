@@ -12,7 +12,7 @@ import Footer from "@/components/Footer";
 import { ArrowLeft, Search, MapPin, DollarSign, GraduationCap } from "lucide-react";
 
 interface College {
-  id: number;
+  id: number | string;
   name: string;
   location: string;
   courses: string[];
@@ -21,6 +21,8 @@ interface College {
   entranceExam?: string;
   description?: string;
   imageUrl?: string;
+  type?: string;
+  highlights?: string[];
 }
 
 export default function Colleges() {
@@ -305,6 +307,28 @@ export default function Colleges() {
                         </div>
                       )}
                     </div>
+                    
+                    {/* AI Generated College Highlights */}
+                    {college.type === 'generated' && college.highlights && (
+                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <h4 className="text-sm font-semibold text-blue-800 mb-2">🤖 AI Insights</h4>
+                        <ul className="text-xs text-blue-700 space-y-1">
+                          {college.highlights.slice(0, 3).map((highlight: string, index: number) => (
+                            <li key={index} className="flex items-start">
+                              <span className="mr-1">•</span>
+                              <span>{highlight}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+
+                    {/* Description for AI Generated Colleges */}
+                    {college.type === 'generated' && college.description && (
+                      <div className="mb-4">
+                        <p className="text-sm text-gray-600 line-clamp-3">{college.description}</p>
+                      </div>
+                    )}
                     
                     <div className="flex space-x-3">
                       <Button className="flex-1 bg-primary">
