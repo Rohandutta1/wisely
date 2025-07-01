@@ -11,7 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
+import { useAuth } from "@/hooks/useAuth";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { ArrowLeft, Search, Star, Clock, GraduationCap, CalendarPlus } from "lucide-react";
@@ -32,6 +32,7 @@ interface Teacher {
 
 export default function Teachers() {
   const [, setLocation] = useLocation();
+  const { isAuthenticated, user } = useAuth();
   const [filters, setFilters] = useState({
     subject: "",
     minExperience: "",
@@ -52,8 +53,8 @@ export default function Teachers() {
     queryKey: ["/api/teachers", filters],
     queryFn: async () => {
       const params = new URLSearchParams();
-      if (filters.subject) params.append("subject", filters.subject);
-      if (filters.minExperience) params.append("minExperience", filters.minExperience);
+      if (filters.subject && filters.subject !== "all") params.append("subject", filters.subject);
+      if (filters.minExperience && filters.minExperience !== "all") params.append("minExperience", filters.minExperience);
       if (filters.maxRate) params.append("maxRate", filters.maxRate);
       
       const response = await fetch(`/api/teachers?${params}`);
@@ -105,6 +106,16 @@ export default function Teachers() {
   });
 
   const handleBooking = () => {
+    if (!isAuthenticated) {
+      toast({
+        title: "Authentication Required",
+        description: "Please sign in to book a session.",
+        variant: "destructive",
+      });
+      window.location.href = "/api/login";
+      return;
+    }
+
     if (!selectedTeacher || !bookingData.date || !bookingData.time) {
       toast({
         title: "Missing Information",
@@ -179,7 +190,7 @@ export default function Teachers() {
                       <SelectValue placeholder="Min experience" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Any Experience</SelectItem>
+                      <SelectItem value="all">Any Experience</SelectItem>
                       <SelectItem value="1">1+ years</SelectItem>
                       <SelectItem value="3">3+ years</SelectItem>
                       <SelectItem value="5">5+ years</SelectItem>

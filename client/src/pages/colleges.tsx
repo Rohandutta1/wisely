@@ -36,13 +36,14 @@ export default function Colleges() {
   const [isAiSearching, setIsAiSearching] = useState(false);
 
   const { data: colleges = [], isLoading } = useQuery<College[]>({
-    queryKey: ["/api/colleges", filters],
+    queryKey: ["/api/colleges", filters, aiQuery],
     queryFn: async () => {
       const params = new URLSearchParams();
       if (filters.course && filters.course !== "all") params.append("course", filters.course);
       if (filters.location && filters.location !== "all") params.append("location", filters.location);
       if (filters.minFees) params.append("minFees", filters.minFees);
       if (filters.maxFees) params.append("maxFees", filters.maxFees);
+      if (aiQuery.trim()) params.append("query", aiQuery);
       
       const response = await fetch(`/api/colleges?${params}`);
       if (!response.ok) throw new Error("Failed to fetch colleges");
@@ -66,25 +67,8 @@ export default function Colleges() {
     if (!aiQuery.trim()) return;
     
     setIsAiSearching(true);
-    try {
-      const response = await fetch('/api/colleges/search', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ query: aiQuery }),
-      });
-      
-      if (!response.ok) throw new Error('AI search failed');
-      
-      const aiResults = await response.json();
-      // Trigger regular search with AI results
-      handleSearch();
-    } catch (error) {
-      console.error('AI search error:', error);
-    } finally {
-      setIsAiSearching(false);
-    }
+    // The query will be triggered automatically by the useQuery dependency
+    setIsAiSearching(false);
   };
 
   if (isLoading) {

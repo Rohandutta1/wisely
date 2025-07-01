@@ -105,14 +105,16 @@ export async function getCollegeRecommendations(
   colleges: any[]
 ): Promise<any[]> {
   try {
-    const systemPrompt = `You are an educational consultant helping students find the best colleges in India. Based on the user's query and the provided college database, recommend the most suitable colleges.
+    const systemPrompt = `You are an educational consultant helping students find the best colleges in India. Based on the user's query and the provided college database, recommend ALL relevant colleges (don't filter out any that could be suitable).
 
 Analyze the user's query for:
-- Academic interests (engineering, medicine, business, arts, etc.)
+- Academic interests (engineering, medicine, business, arts, etc.)  
 - Location preferences
 - Budget constraints
 - Career goals
 - Entrance exam preferences
+
+IMPORTANT: Always recommend AT LEAST 3-5 colleges from the provided list, even if the match isn't perfect. Students need options to choose from.
 
 Return a JSON array of college IDs ranked by relevance to the query, with reasoning for each recommendation.
 
@@ -123,6 +125,11 @@ Format:
       "id": 1,
       "score": 95,
       "reasoning": "Perfect match for engineering with excellent ranking and reasonable fees"
+    },
+    {
+      "id": 2,
+      "score": 80,
+      "reasoning": "Good alternative with strong programs in the field"
     }
   ]
 }`;
@@ -180,10 +187,24 @@ Format:
         .sort((a: any, b: any) => b.score - a.score)
         .map((rec: any) => rec.id);
 
-      // Return colleges in recommended order
-      return sortedRecommendations.map((id: number) => 
+      // Return colleges in recommended order, or all colleges if no recommendations
+      if (sortedRecommendations.length === 0) {
+        console.log("No AI recommendations, returning all colleges");
+        return colleges;
+      }
+      
+      const recommendedColleges = sortedRecommendations.map((id: number) => 
         colleges.find(c => c.id === id)
       ).filter(Boolean);
+      
+      // If we have fewer recommendations than available colleges, add remaining colleges
+      if (recommendedColleges.length < colleges.length) {
+        const recommendedIds = new Set(sortedRecommendations);
+        const remainingColleges = colleges.filter(c => !recommendedIds.has(c.id));
+        return [...recommendedColleges, ...remainingColleges];
+      }
+      
+      return recommendedColleges;
     } else {
       throw new Error("Empty response from Gemini");
     }
