@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+import { setupAuth, isAuthenticated } from "./firebaseAuth"; // Updated import
 import { generateEnglishTest, getCollegeRecommendations, searchCollegeInfo } from "./openai";
 import { insertTestSchema } from "@shared/schema";
 import { seedDatabase } from "./seedData";
@@ -20,7 +20,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.uid; // Updated to use session.user.uid
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -48,7 +48,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/tests', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.uid; // Updated to use session.user.uid
       const testData = insertTestSchema.parse({
         ...req.body,
         userId
@@ -64,7 +64,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/tests/history', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.uid; // Updated to use session.user.uid
       const tests = await storage.getUserTests(userId);
       res.json(tests);
     } catch (error) {
@@ -90,23 +90,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
         colleges = await storage.getAllColleges();
       }
 
-      // If there's a natural language query, use AI to get information
       if (query && typeof query === 'string' && query.trim()) {
         try {
-          // First try to get AI-generated college information
           const aiColleges = await searchCollegeInfo(query.trim());
           
-          // If AI found specific colleges, return them
           if (aiColleges && aiColleges.length > 0) {
             res.json(aiColleges);
             return;
           }
           
-          // Otherwise, use AI to rank existing colleges
           colleges = await getCollegeRecommendations(query.trim(), colleges);
         } catch (error) {
           console.error("AI search error:", error);
-          // Fall back to existing colleges if AI fails
         }
       }
       
@@ -117,7 +112,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // AI College Search endpoint
   app.post("/api/colleges/search", async (req, res) => {
     try {
       const { query } = req.body;
@@ -126,10 +120,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "Query is required" });
       }
 
-      // Get all colleges first
       const allColleges = await storage.getAllColleges();
-      
-      // Use AI to recommend colleges based on query
       const recommendations = await getCollegeRecommendations(query, allColleges);
       
       res.json(recommendations);
@@ -182,7 +173,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       res.json(teacher);
     } catch (error) {
-      console.error("Error fetching teacher:", error);
+      console.error("Error fetching。下: ", error);
       res.status(500).json({ message: "Failed to fetch teacher" });
     }
   });
@@ -190,7 +181,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Booking routes
   app.post('/api/bookings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.uid; // Updated to use session.user.uid
       const booking = await storage.createBooking({
         ...req.body,
         userId,
@@ -205,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.get('/api/bookings', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = req.session.user.uid; // Updated to use session.user.uid
       const bookings = await storage.getUserBookings(userId);
       res.json(bookings);
     } catch (error) {

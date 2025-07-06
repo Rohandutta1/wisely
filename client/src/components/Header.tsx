@@ -20,32 +20,32 @@ export default function Header() {
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-2">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-secondary rounded-xl flex items-center justify-center text-white font-bold text-xl">
-              E
+              W
             </div>
-            <span className="text-2xl font-bold text-gray-800">EngliTest</span>
+            <span className="text-2xl font-bold text-gray-800">Wisely</span>
           </div>
-          
+
           {isAuthenticated && (
             <nav className="hidden md:flex items-center space-x-8">
-              <button 
+              <button
                 onClick={() => setLocation("/")}
                 className="text-gray-600 hover:text-primary transition-colors"
               >
                 Home
               </button>
-              <button 
+              <button
                 onClick={() => setLocation("/history")}
                 className="text-gray-600 hover:text-primary transition-colors"
               >
                 Tests
               </button>
-              <button 
+              <button
                 onClick={() => setLocation("/colleges")}
                 className="text-gray-600 hover:text-primary transition-colors"
               >
                 Colleges
               </button>
-              <button 
+              <button
                 onClick={() => setLocation("/teachers")}
                 className="text-gray-600 hover:text-primary transition-colors"
               >
@@ -53,14 +53,14 @@ export default function Header() {
               </button>
             </nav>
           )}
-          
+
           <div className="flex items-center space-x-4">
             {isAuthenticated ? (
               <div className="flex items-center space-x-4">
                 {user?.profileImageUrl && (
-                  <img 
-                    src={user.profileImageUrl} 
-                    alt="Profile" 
+                  <img
+                    src={user.profileImageUrl}
+                    alt="Profile"
                     className="w-8 h-8 rounded-full object-cover"
                   />
                 )}
@@ -72,7 +72,10 @@ export default function Header() {
                 </Button>
               </div>
             ) : (
-              <Button onClick={handleLogin} className="bg-gradient-to-r from-primary to-secondary">
+              <Button
+                onClick={handleLogin}
+                className="bg-gradient-to-r from-primary to-secondary"
+              >
                 Sign In
               </Button>
             )}
